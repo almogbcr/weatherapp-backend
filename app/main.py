@@ -75,3 +75,31 @@ async def weather(
         )
     except httpx.RequestError as e:
         raise HTTPException(status_code=502, detail=f"Upstream request failed: {e}")
+    
+
+@app.get("/reverse-geocode")
+async def reverse_geocode(
+    lat: float = Query(...),
+    lon: float = Query(...),
+    accept_language: Optional[str] = Header(None, alias="Accept-Language"),
+):
+    url = "https://nominatim.openstreetmap.org/reverse"
+    params = {"format": "jsonv2", "lat": lat, "lon": lon}
+
+    # Nominatim requires a User-Agent and respects Accept-Language for localization
+    headers = {"User-Agent": "weatherapp-backend/1.0"}
+    if accept_language:
+        headers["Accept-Language"] = accept_language
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.get(url, params=params, headers=headers)
+            r.raise_for_status()
+            return r.json()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=502,
+            detail={"upstream_status": e.response.status_code, "upstream_body": e.response.text},
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Upstream request failed: {e}")
