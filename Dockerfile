@@ -7,6 +7,11 @@ LABEL description="FastAPI backend with Uvicorn"
 LABEL version="1.0.0"
 LABEL env="dev"
 
+#Install necessary packages for the application
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
 #Set the working directory
 WORKDIR /opt/weatherapp/backend
 #Copy the requirements file to the working directory
