@@ -7,6 +7,7 @@ FastAPI backend for the Weather App project. This service receives requests from
 - Exposes a health check endpoint for sanity testing.
 - Fetches current weather by latitude and longitude from OpenWeather.
 - Normalizes weather data into a compact response for the frontend.
+- Searches for coordinates from typed location names with Nominatim.
 - Reverse-geocodes coordinates with Nominatim.
 - Forces reverse-geocoded place and country names to English, regardless of browser locale.
 - Requires a client device id for weather requests.
@@ -92,6 +93,17 @@ Query parameters:
 - `lon`: longitude
 
 The backend always sends `Accept-Language: en` to Nominatim so country and place names are returned in English.
+
+### `GET /geocode`
+
+Searches for locations by text and returns matching coordinates.
+
+Query parameters:
+
+- `q`: location search text, such as a city, country, or address
+- `limit`: optional result limit from `1` to `10`, defaults to `5`
+
+The backend also sends `Accept-Language: en` for this endpoint so search result names are returned in English.
 
 ## Rate Limiting
 

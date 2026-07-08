@@ -102,5 +102,36 @@ async def reverse_geocode(
         raise HTTPException(status_code=502, detail=f"Upstream request failed: {e}")
 
 
+@app.get("/geocode")
+async def geocode(
+    q: str = Query(..., min_length=2),
+    limit: int = Query(5, ge=1, le=10),
+):
+    url = "https://nominatim.openstreetmap.org/search"
+    params = {
+        "format": "jsonv2",
+        "q": q,
+        "limit": limit,
+        "addressdetails": 1,
+    }
+    headers = {
+        "User-Agent": "weatherapp-backend/1.0",
+        "Accept-Language": "en",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.get(url, params=params, headers=headers)
+            r.raise_for_status()
+            return r.json()
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=502,
+            detail={"upstream_status": e.response.status_code, "upstream_body": e.response.text},
+        )
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Upstream request failed: {e}")
+
+
 
 
