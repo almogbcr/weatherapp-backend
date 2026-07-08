@@ -1,53 +1,111 @@
 # Weather App Backend
 
-FastAPI service for weather data with:
-- Current weather proxy from OpenWeather.
-- Reverse geocoding via Nominatim.
-- Daily request limiting by IP, device ID, and IP+device pair.
-- PostgreSQL persistence for rate-limit counters.
+FastAPI backend for the Weather App project. This service receives requests from the frontend, calls external weather/location APIs, normalizes the response, and enforces a daily usage limit.
+
+## What This Service Does
+
+- Exposes a health check endpoint for sanity testing.
+- Fetches current weather by latitude and longitude from OpenWeather.
+- Normalizes weather data into a compact response for the frontend.
+- Reverse-geocodes coordinates with Nominatim.
+- Forces reverse-geocoded place and country names to English, regardless of browser locale.
+- Requires a client device id for weather requests.
+- Tracks daily request usage by IP, device id, and IP/device pair.
+- Stores rate-limit counters in PostgreSQL.
+- Auto-creates database tables on application startup.
 
 ## Tech Stack
+
 - Python 3.12
-- FastAPI + Uvicorn
+- FastAPI
+- Uvicorn
+- HTTPX
 - SQLAlchemy 2
 - PostgreSQL
+- Docker
 
 ## Environment Variables
-Required:
-- `OPENWEATHER_API_KEY`
-- `DATABASE_URL`
-- `DAILY_REQUEST_LIMIT` (default: `999`)
 
-Example:
+Required:
 
 ```env
-OPENWEATHER_API_KEY=your_key_here
+OPENWEATHER_API_KEY=your_openweather_key
+DATABASE_URL=postgresql+psycopg://weatherapp:weatherapp@db:5432/weatherapp
 DAILY_REQUEST_LIMIT=999
-DATABASE_URL=postgresql+psycopg://user:password@db:5432/weatherapp
 ```
 
-Copy .example.env is optional
+`DAILY_REQUEST_LIMIT` defaults to `999` when not provided.
 
-## Run via Root Compose
-From `weatherapp/`:
+## Run With Docker Compose
+
+The full project is intended to run from the parent `weatherapp/` folder with the root `docker-compose.yml`.
 
 ```bash
 docker compose up --build
 ```
 
-Backend will be available at:
-- `http://localhost:8000`
+Backend URL:
+
+```text
+http://localhost:8000
+```
 
 ## API Endpoints
-- `GET /health`
-  - Returns service status.
-- `GET /weather?lat=<float>&lon=<float>&units=metric|imperial|standard`
-  - Requires header `X-Device-Id`.
-  - Returns normalized weather + `rate_limit` info.
-- `GET /reverse-geocode?lat=<float>&lon=<float>`
-  - Returns English place and country names regardless of client locale.
+
+### `GET /health`
+
+Returns service status.
+
+Example response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+### `GET /weather`
+
+Fetches current weather for coordinates.
+
+Query parameters:
+
+- `lat`: latitude
+- `lon`: longitude
+- `units`: `metric`, `imperial`, or `standard`
+
+Required header:
+
+```http
+X-Device-Id: unique-client-device-id
+```
+
+The endpoint increments usage counters and returns weather data with rate-limit information.
+
+### `GET /reverse-geocode`
+
+Returns location data for coordinates.
+
+Query parameters:
+
+- `lat`: latitude
+- `lon`: longitude
+
+The backend always sends `Accept-Language: en` to Nominatim so country and place names are returned in English.
+
+## Rate Limiting
+
+Each successful `/weather` request is counted for:
+
+- The request IP address.
+- The device id from `X-Device-Id`.
+- The IP and device id pair.
+
+If any of those counters reaches the configured daily limit, the request is blocked with HTTP `429`.
 
 ## Notes
-- DB tables are auto-created on app startup.
-- If `X-Device-Id` is missing on `/weather`, API returns `400`.
-- When daily limit is exceeded, API returns `429`.
+
+- Missing `OPENWEATHER_API_KEY` or `DATABASE_URL` will prevent the backend from starting.
+- Missing `X-Device-Id` on `/weather` returns HTTP `400`.
+- Upstream OpenWeather or Nominatim failures are returned as HTTP `502`.
+- Local SQLite data files are ignored and should not be committed.
