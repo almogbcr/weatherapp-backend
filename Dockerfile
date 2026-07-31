@@ -5,7 +5,7 @@ FROM python:3.12-slim
 LABEL maintainer="almog"
 LABEL description="FastAPI backend with Uvicorn"
 LABEL version="1.0.0"
-LABEL env="dev"
+LABEL env="production"
 
 #Install necessary packages for the application
 RUN apt-get update \
