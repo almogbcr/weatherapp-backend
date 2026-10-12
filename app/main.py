@@ -4,6 +4,7 @@ import httpx
 from fastapi import FastAPI, HTTPException, Query, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 
+from .geocoding import get_english_place_name, normalize_search_results
 from .settings import get_settings
 from .db import build_engine, build_session_factory
 from .models import Base
@@ -134,55 +135,6 @@ async def weather(
                 f"{e}"
             ),
         )
-
-
-def get_english_place_name(
-    data: dict
-) -> str:
-    namedetails = (
-        data.get("namedetails")
-        or {}
-    )
-
-    address = (
-        data.get("address")
-        or {}
-    )
-
-    english_name = (
-        namedetails.get("name:en")
-        or namedetails.get(
-            "official_name:en"
-        )
-        or namedetails.get(
-            "short_name:en"
-        )
-    )
-
-    if english_name:
-        return english_name
-
-    place_name = (
-        address.get("city")
-        or address.get("town")
-        or address.get("village")
-        or address.get("hamlet")
-        or address.get(
-            "municipality"
-        )
-        or address.get("county")
-        or address.get("state")
-        or address.get("country")
-        or data.get("name")
-    )
-
-    if place_name:
-        return place_name
-
-    return data.get(
-        "display_name",
-        "Unknown location",
-    )
 
 
 @app.get("/reverse-geocode")
@@ -323,57 +275,7 @@ async def geocode(
 
             results = r.json()
 
-            unique_results = []
-            seen_names = set()
-
-            for item in results:
-                english_name = (
-                    get_english_place_name(
-                        item
-                    )
-                )
-
-                item[
-                    "display_name_original"
-                ] = item.get(
-                    "display_name"
-                )
-
-                item["name"] = (
-                    english_name
-                )
-
-                item[
-                    "display_name_en"
-                ] = english_name
-
-                dedup_key = (
-                    english_name
-                    .strip()
-                    .lower()
-                )
-
-                if (
-                    dedup_key
-                    in seen_names
-                ):
-                    continue
-
-                seen_names.add(
-                    dedup_key
-                )
-
-                unique_results.append(
-                    item
-                )
-
-                if (
-                    len(unique_results)
-                    >= limit
-                ):
-                    break
-
-            return unique_results
+            return normalize_search_results(results, limit)
 
     except httpx.HTTPStatusError as e:
         raise HTTPException(
