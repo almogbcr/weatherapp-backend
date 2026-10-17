@@ -37,3 +37,12 @@ jobs:
           file: ./Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: almogbcr/weatherapp-backend:${{ env.SHORT_SHA }}
+
+      - name: Checkout infrastructure repository
+        if: github.ref == 'refs/heads/main'
+        uses: actions/checkout@v5
+        with:
+          repository: almogbcr/weatherapp-infra
+          ref: main
+          token: ${{ secrets.WEATHERAPP_UPDATE }}
+          path: infra
