@@ -46,3 +46,8 @@ jobs:
           ref: main
           token: ${{ secrets.WEATHERAPP_UPDATE }}
           path: infra
+      
+      - name: Show DEV values
+        if: github.ref == 'refs/heads/main'
+        working-directory: infra
+        run: cat k8s/helm/weatherapp/values-dev.yaml
