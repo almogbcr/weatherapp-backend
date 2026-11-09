@@ -66,3 +66,24 @@ jobs:
           yq -i '.backend.image.imgTag = strenv(SHORT_SHA)' "$FILE"
 
           git -C infra diff -- "k8s/helm/weatherapp/$VALUES_FILE"
+            
+      - name: Commit and Push Infra Changes
+        run: |
+          git -C infra config user.name "github-actions[bot]"
+          git -C infra config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [[ "$GITHUB_REF_NAME" == "main" ]]; then
+            VALUES_FILE="values-prod.yaml"
+          else
+            VALUES_FILE="values-dev.yaml"
+          fi
+
+          git -C infra add "k8s/helm/weatherapp/$VALUES_FILE"
+
+          if git -C infra diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git -C infra commit -m "ci: update backend image to ${SHORT_SHA} in ${GITHUB_REF_NAME}"
+          git -C infra push origin HEAD:main  
