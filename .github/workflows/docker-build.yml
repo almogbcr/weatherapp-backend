@@ -24,7 +24,6 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Login to Docker Hub
-        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v4
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -35,15 +34,35 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: ${{ github.ref == 'refs/heads/main' }}
-          tags: almogbcr/weatherapp-backend:${{ env.SHORT_SHA }}
+          push: true
+          tags: |
+            almogbcr/weatherapp-backend:${{ env.SHORT_SHA }}
+            almogbcr/weatherapp-backend:${{ github.ref_name }}-${{ env.SHORT_SHA }}
 
       - name: Checkout infrastructure repository
-        if: github.ref == 'refs/heads/main'
         uses: actions/checkout@v5
         with:
           repository: almogbcr/weatherapp-infra
           ref: main
           token: ${{ secrets.WEATHERAPP_UPDATE }}
           path: infra
-    
+     
+      - name: install yq
+        run: |
+          wget -q https://github.com/mikefarah/yq/releases/download/v4.54.1/yq_linux_amd64 -O /tmp/yq
+          sudo install -m 0755 /tmp/yq /usr/local/bin/yq
+          yq --version
+
+      - name: Update Backend Image Tag
+        run: |
+          if [[ "$GITHUB_REF_NAME" == "main" ]]; then
+            VALUES_FILE="values-prod.yaml"
+          else
+            VALUES_FILE="values-dev.yaml"
+          fi
+
+          FILE="infra/k8s/helm/weatherapp/$VALUES_FILE"
+
+          yq -i '.backend.image.imgTag = strenv(SHORT_SHA)' "$FILE"
+
+          git -C infra diff -- "k8s/helm/weatherapp/$VALUES_FILE"
