@@ -5,6 +5,7 @@ FastAPI backend for the Weather App project. This service receives requests from
 ## What This Service Does
 
 - Exposes a health check endpoint for sanity testing.
+- Exposes Prometheus HTTP request counts and response duration histograms at `/metrics`.
 - Fetches current weather by latitude and longitude from OpenWeather.
 - Normalizes weather data into a compact response for the frontend.
 - Searches for coordinates from typed location names with Nominatim.
@@ -65,6 +66,22 @@ Example response:
 }
 ```
 
+### `GET /metrics`
+
+Returns Prometheus text exposition, using `prometheus-fastapi-instrumentator` 7.1.0
+(the compatible release for the pinned Starlette version).
+
+- `http_requests_total{handler,status}` counts requests with exact HTTP status codes.
+- `http_request_duration_seconds{handler}` is a response duration histogram in seconds.
+- Handlers use route templates; unmatched paths share `handler="none"`.
+- Method, query, body, header, API key, IP address, and device id labels are omitted.
+- Metrics scrapes are excluded from HTTP metrics and the endpoint is hidden from OpenAPI.
+- The default Prometheus client registry also exports process and Python runtime metrics.
+
+Metrics are per running backend process and reset when it restarts. No database or
+upstream API call is needed to scrape them once the application has started.
+Service discovery and scraping configuration are managed separately.
+
 ### `GET /weather`
 
 Fetches current weather for coordinates.
@@ -121,3 +138,14 @@ If any of those counters reaches the configured daily limit, the request is bloc
 - Missing `X-Device-Id` on `/weather` returns HTTP `400`.
 - Upstream OpenWeather or Nominatim failures are returned as HTTP `502`.
 - Local SQLite data files are ignored and should not be committed.
+
+## Tests
+
+With dependencies installed, run from this directory:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Metrics tests use dummy settings, in-memory SQLite, and mocked upstream/error paths;
+they do not require real API credentials, PostgreSQL, or external network access.

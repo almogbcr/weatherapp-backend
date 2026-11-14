@@ -3,6 +3,7 @@
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator, metrics
 
 from .geocoding import get_english_place_name, normalize_search_results
 from .settings import get_settings
@@ -22,6 +23,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Only route templates and status codes become labels.
+# Unknown paths share the "none" handler; queries, headers, and bodies are not labels.
+Instrumentator(
+    should_group_status_codes=False,
+    should_ignore_untemplated=False,
+    should_group_untemplated=True,
+    excluded_handlers=[r"^/metrics$"],
+).add(
+    metrics.requests(should_include_method=False),
+    metrics.latency(should_include_method=False, should_include_status=False),
+).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 settings = get_settings()
 
