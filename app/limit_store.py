@@ -5,8 +5,9 @@ from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert
 
-from .models import DailyDeviceCount, DailyIpCount, DailyPairCount
+from .models import DailyDeviceCount, DailyIpCount, DailyPairCount, DailyGlobalCount
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,7 @@ class RateInfo:
     device_count: int
     pair_count: int
     blocked: bool
+    reason: str | None = None
 
     def max_count(self) -> int:
         return max(self.ip_count, self.device_count, self.pair_count)
@@ -36,8 +38,16 @@ def _get_for_update(session: Session, stmt):
     return session.execute(stmt.with_for_update()).scalar_one_or_none()
 
 
-def check_and_increment(session: Session, ip: str, device_id: str, limit: int) -> RateInfo:
+def check_and_increment(session: Session, ip: str, device_id: str, limit: int, global_limit: int = 999) -> RateInfo:
     day = date.today()
+
+    # The unique day key arbitrates first creation across Pods. The row lock
+    # serializes all quota admissions until the caller commits the transaction.
+    session.execute(insert(DailyGlobalCount).values(day=day, count=0)
+                    .on_conflict_do_nothing(index_elements=[DailyGlobalCount.day]))
+    global_row = _get_for_update(
+        session, select(DailyGlobalCount).where(DailyGlobalCount.day == day)
+    )
 
     ip_row = _get_for_update(
         session, select(DailyIpCount).where(DailyIpCount.day == day, DailyIpCount.ip == ip)
@@ -69,8 +79,15 @@ def check_and_increment(session: Session, ip: str, device_id: str, limit: int) -
             device_count=device_count,
             pair_count=pair_count,
             blocked=True,
+            reason="personal_daily_limit",
         )
 
+    if global_row.count >= global_limit:
+        return RateInfo(day=day.isoformat(), limit=limit, ip_count=ip_count,
+                        device_count=device_count, pair_count=pair_count,
+                        blocked=True, reason="global_daily_limit")
+
+    global_row.count += 1
     if ip_row:
         ip_row.count += 1
     else:

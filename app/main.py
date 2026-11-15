@@ -97,15 +97,19 @@ async def weather(
             ip=ip,
             device_id=device_id,
             limit=settings.daily_limit,
+            global_limit=settings.global_daily_limit,
         )
 
     if rate_info.blocked:
         raise HTTPException(
             status_code=429,
             detail={
-                "message":
-                    f"Daily request limit reached "
-                    f"({settings.daily_limit}).",
+                "code": rate_info.reason,
+                "message": (
+                    "The weather service has reached its daily usage limit. Please try again later."
+                    if rate_info.reason == "global_daily_limit"
+                    else "You have reached your daily request limit."
+                ),
                 "rate_limit":
                     rate_info.to_dict(),
             },

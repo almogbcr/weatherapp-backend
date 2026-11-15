@@ -27,3 +27,10 @@ class DailyPairCount(Base):
     ip: Mapped[str] = mapped_column(String(64), primary_key=True)
     device_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class DailyGlobalCount(Base):
+    __tablename__ = "daily_global_counts"
+
+    day: Mapped[Date] = mapped_column(Date, primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
