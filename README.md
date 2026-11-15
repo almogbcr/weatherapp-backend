@@ -7,7 +7,7 @@ It improves security by keeping sensitive information, such as the API key, on t
 It also processes and normalizes the JSON responses received from OpenWeather, providing the frontend with only the data it needs.
 
 ### Tech Stack
-```
+
 | Technology | Purpose |
 |------------|---------|
 | Python 3.12 | Programming language used to develop the backend |
@@ -17,7 +17,7 @@ It also processes and normalizes the JSON responses received from OpenWeather, p
 | SQLAlchemy 2 | Database toolkit and ORM used to interact with PostgreSQL |
 | PostgreSQL | Database used to store daily request counters and rate limit data |
 | Docker | Packages the backend and its dependencies into a portable container image |
-```
+
 ### API Endpoints
 ```
 GET /health
